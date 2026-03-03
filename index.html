@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PulseAnalytics — Analytics Platform</title>
+  <meta name="description" content="Frontend-only analytics platform with KPIs, funnels, cohorts, segmentation, and CSV import." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">PA</div>
+        <div>
+          <div class="brand-title">PulseAnalytics</div>
+          <div class="brand-sub">Product & Revenue Insights</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="overview">
+          <span class="dot"></span> Overview
+        </button>
+        <button class="nav-item" data-view="events">
+          <span class="dot"></span> Events Explorer
+        </button>
+        <button class="nav-item" data-view="funnels">
+          <span class="dot"></span> Funnels
+        </button>
+        <button class="nav-item" data-view="cohorts">
+          <span class="dot"></span> Cohorts
+        </button>
+        <button class="nav-item" data-view="segments">
+          <span class="dot"></span> Segments
+        </button>
+        <button class="nav-item" data-view="alerts">
+          <span class="dot"></span> Alerts
+        </button>
+        <button class="nav-item" data-view="data">
+          <span class="dot"></span> Data
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="panel">
+          <div class="panel-title">Global Filters</div>
+
+          <label class="label">Date range</label>
+          <div class="row">
+            <input class="input" type="date" id="fromDate">
+            <input class="input" type="date" id="toDate">
+          </div>
+
+          <label class="label">Device</label>
+          <select class="input" id="deviceFilter">
+            <option value="all">All</option>
+            <option value="desktop">Desktop</option>
+            <option value="mobile">Mobile</option>
+            <option value="tablet">Tablet</option>
+          </select>
+
+          <label class="label">Region</label>
+          <select class="input" id="regionFilter">
+            <option value="all">All</option>
+            <option value="NA">NA</option>
+            <option value="EU">EU</option>
+            <option value="APAC">APAC</option>
+            <option value="LATAM">LATAM</option>
+          </select>
+
+          <label class="label">Plan</label>
+          <select class="input" id="planFilter">
+            <option value="all">All</option>
+            <option value="free">Free</option>
+            <option value="basic">Basic</option>
+            <option value="pro">Pro</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+
+          <div class="row space">
+            <button class="btn secondary" id="resetFilters">Reset</button>
+            <button class="btn" id="applyFilters">Apply</button>
+          </div>
+
+          <div class="tiny muted">Filters apply across all views.</div>
+        </div>
+
+        <div class="row space">
+          <button class="btn secondary" id="toggleTheme">Toggle theme</button>
+          <button class="btn" id="loadDemo">Load demo</button>
+        </div>
+
+        <div class="tiny muted">
+          Data stored locally (LocalStorage). Great for GitHub Pages.
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="viewTitle">Overview</h1>
+          <div class="pill" id="activeRangePill">—</div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="search-wrap">
+            <input id="search" class="input" type="search" placeholder="Search users, events, properties..." />
+          </div>
+          <button class="btn primary" id="openEventModal">+ Add Event</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <!-- OVERVIEW -->
+        <div class="view" id="view-overview">
+          <div class="grid kpis">
+            <div class="card">
+              <div class="kicker">Revenue</div>
+              <div class="value" id="kpiRevenue">$0</div>
+              <div class="sub" id="kpiRevenueSub">—</div>
+            </div>
+            <div class="card">
+              <div class="kicker">Orders</div>
+              <div class="value" id="kpiOrders">0</div>
+              <div class="sub" id="kpiOrdersSub">—</div>
+            </div>
+            <div class="card">
+              <div class="kicker">Conversion</div>
+              <div class="value" id="kpiConversion">0%</div>
+              <div class="sub" id="kpiConversionSub">—</div>
+            </div>
+            <div class="card">
+              <div class="kicker">DAU / MAU</div>
+              <div class="value" id="kpiStickiness">0%</div>
+              <div class="sub" id="kpiStickinessSub">—</div>
+            </div>
+          </div>
+
+          <div class="grid charts">
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Revenue & Orders Trend</div>
+                  <div class="muted">Daily totals within your filters</div>
+                </div>
+                <div class="row">
+                  <select class="input small" id="trendMetric">
+                    <option value="revenue">Revenue</option>
+                    <option value="orders">Orders</option>
+                    <option value="sessions">Sessions</option>
+                    <option value="signups">Signups</option>
+                  </select>
+                </div>
+              </div>
+              <canvas id="trendChart" height="120"></canvas>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Top Categories</div>
+                  <div class="muted">What people buy (based on purchase events)</div>
+                </div>
+              </div>
+              <canvas id="categoryChart" height="120"></canvas>
+            </div>
+          </div>
+
+          <div class="grid bottom">
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Recent Activity</div>
+                  <div class="muted">Latest events with quick context</div>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="table" id="recentTable">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>User</th>
+                      <th>Event</th>
+                      <th>Value</th>
+                      <th>Props</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Anomaly Snapshot</div>
+                  <div class="muted">Simple detection: spikes & drops</div>
+                </div>
+              </div>
+              <div id="anomalyBox" class="anomaly"></div>
+              <div class="tiny muted">Based on trailing 7-day baseline where possible.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EVENTS -->
+        <div class="view hidden" id="view-events">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Events Explorer</div>
+                <div class="muted">Filter, search, sort, and inspect event properties.</div>
+              </div>
+              <div class="row">
+                <select class="input small" id="eventTypeFilter">
+                  <option value="all">All event types</option>
+                  <option value="session_start">session_start</option>
+                  <option value="page_view">page_view</option>
+                  <option value="signup">signup</option>
+                  <option value="add_to_cart">add_to_cart</option>
+                  <option value="purchase">purchase</option>
+                </select>
+                <select class="input small" id="eventSort">
+                  <option value="time_desc">Newest</option>
+                  <option value="time_asc">Oldest</option>
+                  <option value="value_desc">Value high → low</option>
+                  <option value="value_asc">Value low → high</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="table" id="eventsTable">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Event</th>
+                    <th>Device</th>
+                    <th>Region</th>
+                    <th>Plan</th>
+                    <th>Value</th>
+                    <th>Properties</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div class="row space">
+              <div class="tiny muted" id="eventsCount">—</div>
+              <div class="row">
+                <button class="btn secondary" id="prevPage">Prev</button>
+                <button class="btn secondary" id="nextPage">Next</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FUNNELS -->
+        <div class="view hidden" id="view-funnels">
+          <div class="grid two">
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Checkout Funnel</div>
+                  <div class="muted">session_start → page_view → add_to_cart → purchase</div>
+                </div>
+                <div class="row">
+                  <select class="input small" id="funnelWindow">
+                    <option value="7">7-day window</option>
+                    <option value="14">14-day window</option>
+                    <option value="30">30-day window</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="funnelSteps" class="funnel"></div>
+              <div class="tiny muted">Counts unique users who reached each step within the window.</div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Drop-off Reasons (heuristic)</div>
+                  <div class="muted">Based on last event seen per user</div>
+                </div>
+              </div>
+              <div id="dropoffBox" class="dropoff"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COHORTS -->
+        <div class="view hidden" id="view-cohorts">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Retention Cohorts</div>
+                <div class="muted">Cohort = signup week; retention = active in later weeks</div>
+              </div>
+              <div class="row">
+                <select class="input small" id="cohortWeeks">
+                  <option value="6">Last 6 weeks</option>
+                  <option value="10">Last 10 weeks</option>
+                  <option value="14">Last 14 weeks</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="cohort-wrap">
+              <table class="table" id="cohortTable">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div class="tiny muted">
+              “Active” = had any event in that week. Great for demonstrating cohort analysis.
+            </div>
+          </div>
+        </div>
+
+        <!-- SEGMENTS -->
+        <div class="view hidden" id="view-segments">
+          <div class="grid two">
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Segment Builder</div>
+                  <div class="muted">Define a segment and compare metrics.</div>
+                </div>
+              </div>
+
+              <div class="segment-form">
+                <label class="label">Segment name</label>
+                <input class="input" id="segmentName" placeholder="e.g., Pro users in NA on mobile" />
+
+                <div class="grid three">
+                  <div>
+                    <label class="label">Plan</label>
+                    <select class="input" id="segPlan">
+                      <option value="all">All</option>
+                      <option value="free">Free</option>
+                      <option value="basic">Basic</option>
+                      <option value="pro">Pro</option>
+                      <option value="enterprise">Enterprise</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="label">Region</label>
+                    <select class="input" id="segRegion">
+                      <option value="all">All</option>
+                      <option value="NA">NA</option>
+                      <option value="EU">EU</option>
+                      <option value="APAC">APAC</option>
+                      <option value="LATAM">LATAM</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="label">Device</label>
+                    <select class="input" id="segDevice">
+                      <option value="all">All</option>
+                      <option value="desktop">Desktop</option>
+                      <option value="mobile">Mobile</option>
+                      <option value="tablet">Tablet</option>
+                    </select>
+                  </div>
+                </div>
+
+                <label class="label">Minimum purchases (count)</label>
+                <input class="input" type="number" min="0" id="segMinPurchases" value="1" />
+
+                <div class="row space">
+                  <button class="btn secondary" id="clearSegment">Clear</button>
+                  <button class="btn" id="runSegment">Run segment</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Segment Results</div>
+                  <div class="muted">KPIs for the segment within global filters</div>
+                </div>
+              </div>
+
+              <div class="grid kpis small">
+                <div class="mini">
+                  <div class="kicker">Users</div>
+                  <div class="value" id="segUsers">—</div>
+                </div>
+                <div class="mini">
+                  <div class="kicker">Revenue</div>
+                  <div class="value" id="segRevenue">—</div>
+                </div>
+                <div class="mini">
+                  <div class="kicker">Orders</div>
+                  <div class="value" id="segOrders">—</div>
+                </div>
+                <div class="mini">
+                  <div class="kicker">Conv.</div>
+                  <div class="value" id="segConv">—</div>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+              <div class="card-title">Top Users (by revenue)</div>
+              <div class="muted">Helps show “drill-down” capability.</div>
+
+              <div class="table-wrap">
+                <table class="table" id="segTopUsers">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Plan</th>
+                      <th>Region</th>
+                      <th>Device</th>
+                      <th>Revenue</th>
+                      <th>Orders</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ALERTS -->
+        <div class="view hidden" id="view-alerts">
+          <div class="grid two">
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Alert Rules</div>
+                  <div class="muted">Define basic threshold alerts.</div>
+                </div>
+              </div>
+
+              <div class="segment-form">
+                <label class="label">Alert name</label>
+                <input class="input" id="alertName" placeholder="e.g., Revenue drop alert" />
+
+                <label class="label">Metric</label>
+                <select class="input" id="alertMetric">
+                  <option value="revenue">Revenue</option>
+                  <option value="orders">Orders</option>
+                  <option value="conversion">Conversion (%)</option>
+                  <option value="signups">Signups</option>
+                </select>
+
+                <label class="label">Condition</label>
+                <select class="input" id="alertCondition">
+                  <option value="gt">Greater than</option>
+                  <option value="lt">Less than</option>
+                </select>
+
+                <label class="label">Threshold</label>
+                <input class="input" id="alertThreshold" type="number" step="0.01" placeholder="e.g., 1000" />
+
+                <div class="row space">
+                  <button class="btn secondary" id="clearAlert">Clear</button>
+                  <button class="btn" id="saveAlert">Save alert</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Alert Evaluations</div>
+                  <div class="muted">Evaluated against current filtered data.</div>
+                </div>
+              </div>
+              <div id="alertList" class="alert-list"></div>
+              <div class="tiny muted">This is a frontend simulation of an alerting layer.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DATA -->
+        <div class="view hidden" id="view-data">
+          <div class="grid two">
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Import CSV</div>
+                  <div class="muted">Load event data (schema below).</div>
+                </div>
+              </div>
+
+              <input class="input" type="file" id="csvFile" accept=".csv" />
+              <div class="tiny muted">
+                CSV columns: timestamp,user_id,event,device,region,plan,value,category,properties_json
+              </div>
+
+              <div class="row space">
+                <button class="btn secondary" id="downloadSchema">Download sample CSV</button>
+                <button class="btn" id="importCsvBtn">Import CSV</button>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="card-title">Export</div>
+              <div class="row space">
+                <button class="btn secondary" id="exportJson">Export JSON</button>
+                <button class="btn secondary" id="exportCsv">Export CSV</button>
+                <button class="btn danger" id="wipeData">Wipe all data</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Data Summary</div>
+                  <div class="muted">Quick sanity-check of what’s loaded.</div>
+                </div>
+              </div>
+
+              <div class="grid kpis small">
+                <div class="mini">
+                  <div class="kicker">Events</div>
+                  <div class="value" id="sumEvents">—</div>
+                </div>
+                <div class="mini">
+                  <div class="kicker">Users</div>
+                  <div class="value" id="sumUsers">—</div>
+                </div>
+                <div class="mini">
+                  <div class="kicker">First event</div>
+                  <div class="value" id="sumFirst">—</div>
+                </div>
+                <div class="mini">
+                  <div class="kicker">Last event</div>
+                  <div class="value" id="sumLast">—</div>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+              <div class="card-title">Event Type Mix</div>
+              <div class="table-wrap">
+                <table class="table" id="mixTable">
+                  <thead>
+                    <tr><th>Event</th><th>Count</th><th>%</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: Add Event -->
+  <div class="modal hidden" id="eventModal" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title" id="eventModalTitle">Add Event</div>
+          <div class="muted">This simulates tracking events without a backend.</div>
+        </div>
+        <button class="icon-btn" id="closeEventModal" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="grid three">
+          <div>
+            <label class="label">Timestamp</label>
+            <input class="input" type="datetime-local" id="evTime">
+          </div>
+          <div>
+            <label class="label">User ID</label>
+            <input class="input" id="evUser" placeholder="u_123" />
+          </div>
+          <div>
+            <label class="label">Event</label>
+            <select class="input" id="evType">
+              <option value="session_start">session_start</option>
+              <option value="page_view">page_view</option>
+              <option value="signup">signup</option>
+              <option value="add_to_cart">add_to_cart</option>
+              <option value="purchase">purchase</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid three">
+          <div>
+            <label class="label">Device</label>
+            <select class="input" id="evDevice">
+              <option value="desktop">desktop</option>
+              <option value="mobile">mobile</option>
+              <option value="tablet">tablet</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Region</label>
+            <select class="input" id="evRegion">
+              <option value="NA">NA</option>
+              <option value="EU">EU</option>
+              <option value="APAC">APAC</option>
+              <option value="LATAM">LATAM</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Plan</label>
+            <select class="input" id="evPlan">
+              <option value="free">free</option>
+              <option value="basic">basic</option>
+              <option value="pro">pro</option>
+              <option value="enterprise">enterprise</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid three">
+          <div>
+            <label class="label">Value (optional)</label>
+            <input class="input" id="evValue" type="number" step="0.01" placeholder="e.g., 49.99" />
+          </div>
+          <div>
+            <label class="label">Category (optional)</label>
+            <input class="input" id="evCategory" placeholder="e.g., Electronics" />
+          </div>
+          <div>
+            <label class="label">Properties JSON</label>
+            <input class="input" id="evProps" placeholder='{"page":"/pricing","utm":"tiktok"}' />
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn secondary" id="cancelEvent">Cancel</button>
+        <button class="btn primary" id="saveEvent">Save event</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
